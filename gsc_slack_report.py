@@ -34,8 +34,10 @@ class SiteResult:
 
 def getenv_int(name: str, default: int) -> int:
     value = os.getenv(name)
+
     if value is None or value.strip() == "":
         return default
+
     try:
         return int(value)
     except ValueError:
@@ -59,21 +61,33 @@ def load_service_account_info() -> Dict[str, Any]:
         return json.loads(decoded)
 
     raise RuntimeError(
-        "Missing Google credential. Set GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_JSON_BASE64."
+        "Missing Google credential. "
+        "Set GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_JSON_BASE64."
     )
 
 
 def build_gsc_service():
     info = load_service_account_info()
-    credentials = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
-    return build("searchconsole", "v1", credentials=credentials, cache_discovery=False)
+    credentials = service_account.Credentials.from_service_account_info(
+        info,
+        scopes=SCOPES,
+    )
+
+    return build(
+        "searchconsole",
+        "v1",
+        credentials=credentials,
+        cache_discovery=False,
+    )
 
 
 def pct_change(current: int, previous: int) -> Optional[float]:
     if previous == 0:
         if current == 0:
             return 0.0
+
         return None
+
     return ((current - previous) / previous) * 100
 
 
@@ -84,8 +98,10 @@ def fmt_num(value: int) -> str:
 def fmt_pct(value: Optional[float]) -> str:
     if value is None:
         return "ใหม่"
+
     rounded = round(value)
     sign = "+" if rounded > 0 else ""
+
     return f"{sign}{rounded}%"
 
 
@@ -100,6 +116,7 @@ def last_day_of_month(year: int, month: int) -> int:
 def previous_month(year: int, month: int) -> Tuple[int, int]:
     if month == 1:
         return year - 1, 12
+
     return year, month - 1
 
 
@@ -112,6 +129,7 @@ def report_periods(today: Optional[date] = None) -> Tuple[date, date, date, date
         today = now.date()
 
     stable_end = today - timedelta(days=data_delay_days)
+
     current_start = stable_end.replace(day=1)
     current_end = stable_end
 
@@ -130,13 +148,21 @@ def gsc_query(service, site_url: str, start_date: date, end_date: date) -> Dict[
         "rowLimit": 1,
     }
 
-    response = service.searchanalytics().query(siteUrl=site_url, body=body).execute()
+    response = service.searchanalytics().query(
+        siteUrl=site_url,
+        body=body,
+    ).execute()
+
     rows = response.get("rows", [])
 
     if not rows:
-        return {"clicks": 0, "impressions": 0}
+        return {
+            "clicks": 0,
+            "impressions": 0,
+        }
 
     row = rows[0]
+
     return {
         "clicks": int(round(row.get("clicks", 0))),
         "impressions": int(round(row.get("impressions", 0))),
@@ -154,7 +180,11 @@ def decide_status(
     min_clicks = getenv_int("MIN_CLICKS_FOR_STATUS", 5)
     min_impressions = getenv_int("MIN_IMPRESSIONS_FOR_STATUS", 100)
 
-    if (current_clicks + previous_clicks) < min_clicks and (current_impressions + previous_impressions) < min_impressions:
+    if (
+        current_clicks + previous_clicks
+    ) < min_clicks and (
+        current_impressions + previous_impressions
+    ) < min_impressions:
         return "⚠️ ข้อมูลน้อย ยังสรุปไม่ได้"
 
     if clicks_pct is None:
@@ -170,7 +200,7 @@ def decide_status(
         return "🟡 การมองเห็นเพิ่ม แต่คลิกลด"
 
     if -15 < clicks_pct < -5:
-        return "🟡 คลิกลด ต้องติดตาม"
+        return "🟠 คลิกลด ต้องติดตาม"
 
     if clicks_pct >= 25:
         return "🟢 เติบโตดีมาก"
@@ -186,7 +216,14 @@ def load_sites(path: str = "sites.json") -> List[Dict[str, str]]:
         return json.load(f)
 
 
-def collect_results(service, sites: List[Dict[str, str]], current_start: date, current_end: date, previous_start: date, previous_end: date) -> List[SiteResult]:
+def collect_results(
+    service,
+    sites: List[Dict[str, str]],
+    current_start: date,
+    current_end: date,
+    previous_start: date,
+    previous_end: date,
+) -> List[SiteResult]:
     results: List[SiteResult] = []
 
     for site in sites:
@@ -194,8 +231,18 @@ def collect_results(service, sites: List[Dict[str, str]], current_start: date, c
         gsc_property = site["gsc_property"]
 
         try:
-            current = gsc_query(service, gsc_property, current_start, current_end)
-            previous = gsc_query(service, gsc_property, previous_start, previous_end)
+            current = gsc_query(
+                service,
+                gsc_property,
+                current_start,
+                current_end,
+            )
+            previous = gsc_query(
+                service,
+                gsc_property,
+                previous_start,
+                previous_end,
+            )
 
             current_clicks = current["clicks"]
             previous_clicks = previous["clicks"]
@@ -203,7 +250,10 @@ def collect_results(service, sites: List[Dict[str, str]], current_start: date, c
             previous_impressions = previous["impressions"]
 
             clicks_change = pct_change(current_clicks, previous_clicks)
-            impressions_change = pct_change(current_impressions, previous_impressions)
+            impressions_change = pct_change(
+                current_impressions,
+                previous_impressions,
+            )
 
             status = decide_status(
                 current_clicks,
@@ -260,12 +310,20 @@ def collect_results(service, sites: List[Dict[str, str]], current_start: date, c
                 )
             )
 
-    results.sort(key=lambda x: (x.current_clicks, x.current_impressions), reverse=True)
+    results.sort(
+        key=lambda x: (x.current_clicks, x.current_impressions),
+        reverse=True,
+    )
+
     return results
 
 
 def medal(rank: int) -> str:
-    return {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, str(rank))
+    return {
+        1: "🥇",
+        2: "🥈",
+        3: "🥉",
+    }.get(rank, f"{rank}.")
 
 
 def thai_month_en(date_value: date) -> str:
@@ -276,46 +334,69 @@ def period_label(start: date, end: date) -> str:
     # Example: 1–6 Jul 2026
     if start.year == end.year and start.month == end.month:
         return f"{start.day}–{end.day} {end.strftime('%b')} {end.year}"
+
     return f"{thai_month_en(start)} – {thai_month_en(end)}"
 
 
-def build_slack_message(results: List[SiteResult], current_start: date, current_end: date, previous_start: date, previous_end: date) -> str:
+def build_slack_message(
+    results: List[SiteResult],
+    current_start: date,
+    current_end: date,
+    previous_start: date,
+    previous_end: date,
+) -> str:
     lines = []
+
     lines.append("🏆 SEO MTD Leaderboard – Google Search Console")
     lines.append(f"ข้อมูลปัจจุบัน: {period_label(current_start, current_end)}")
     lines.append(f"เทียบกับ: {period_label(previous_start, previous_end)}")
     lines.append("")
-    lines.append("```")
-    lines.append(f"{'#':<3} {'Website':<24} {'Clicks':<18} {'Impressions':<18} สถานะ")
 
     for index, item in enumerate(results, start=1):
         rank_label = medal(index)
         clicks_text = format_metric(item.current_clicks, item.clicks_change_pct)
-        impressions_text = format_metric(item.current_impressions, item.impressions_change_pct)
-        lines.append(f"{rank_label:<3} {item.domain:<24} {clicks_text:<18} {impressions_text:<18} {item.status}")
+        impressions_text = format_metric(
+            item.current_impressions,
+            item.impressions_change_pct,
+        )
 
-    lines.append("```")
+        lines.append(f"{rank_label} {item.domain}")
+        lines.append(f"Clicks: {clicks_text}")
+        lines.append(f"Impressions: {impressions_text}")
+        lines.append(f"สถานะ: {item.status}")
+        lines.append("")
 
     error_items = [item for item in results if item.error]
+
     if error_items:
-        lines.append("")
         lines.append("⚠️ หมายเหตุ: มีบางเว็บที่ดึงข้อมูลไม่ได้")
+
         for item in error_items:
-            lines.append(f"- {item.domain}: ตรวจสอบสิทธิ์ GSC หรือ property URL")
+            lines.append(
+                f"- {item.domain}: ตรวจสอบสิทธิ์ GSC หรือ property URL"
+            )
 
     return "\n".join(lines)
 
 
 def post_to_slack(message: str):
     webhook_url = os.getenv("SLACK_WEBHOOK_URL")
+
     if not webhook_url:
         print(message)
         print("\nSLACK_WEBHOOK_URL is not set, so the report was printed only.")
         return
 
-    response = requests.post(webhook_url, json={"text": message}, timeout=30)
+    response = requests.post(
+        webhook_url,
+        json={"text": message},
+        timeout=30,
+    )
+
     if response.status_code >= 400:
-        raise RuntimeError(f"Slack webhook failed: {response.status_code} {response.text}")
+        raise RuntimeError(
+            f"Slack webhook failed: {response.status_code} {response.text}"
+        )
 
 
 def main():
@@ -327,8 +408,23 @@ def main():
     current_start, current_end, previous_start, previous_end = report_periods()
 
     service = build_gsc_service()
-    results = collect_results(service, sites, current_start, current_end, previous_start, previous_end)
-    message = build_slack_message(results, current_start, current_end, previous_start, previous_end)
+
+    results = collect_results(
+        service,
+        sites,
+        current_start,
+        current_end,
+        previous_start,
+        previous_end,
+    )
+
+    message = build_slack_message(
+        results,
+        current_start,
+        current_end,
+        previous_start,
+        previous_end,
+    )
 
     print(message)
     post_to_slack(message)
