@@ -374,6 +374,13 @@ def medal(rank: int) -> str:
         1: "🥇",
         2: "🥈",
         3: "🥉",
+        4: "4️⃣",
+        5: "5️⃣",
+        6: "6️⃣",
+        7: "7️⃣",
+        8: "8️⃣",
+        9: "9️⃣",
+        10: "🔟",
     }.get(rank, f"{rank}.")
 
 
@@ -446,7 +453,10 @@ def build_slack_message(
         for item in error_items:
             lines.append(f"- {item.domain}: ตรวจสอบสิทธิ์ GSC หรือ property URL")
 
-    return "\n".join(lines) + "\n\n"
+    lines.append("จบรายงาน")
+    lines.append("")
+
+    return "\n".join(lines)
 
 
 def main():
