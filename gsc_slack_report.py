@@ -79,7 +79,6 @@ def pct_change(current: int, previous: int) -> Optional[float]:
     if previous == 0:
         if current == 0:
             return 0.0
-
         return None
 
     return ((current - previous) / previous) * 100
@@ -87,20 +86,6 @@ def pct_change(current: int, previous: int) -> Optional[float]:
 
 def fmt_num(value: int) -> str:
     return f"{value:,}"
-
-
-def fmt_pct(value: Optional[float]) -> str:
-    if value is None:
-        return "ใหม่"
-
-    rounded = round(value)
-    sign = "+" if rounded > 0 else ""
-
-    return f"{sign}{rounded}%"
-
-
-def format_metric(value: int, change_pct: Optional[float]) -> str:
-    return f"{fmt_num(value)} ({fmt_pct(change_pct)})"
 
 
 def format_change_arrow(value: Optional[float]) -> str:
@@ -415,32 +400,9 @@ def build_slack_message(
     current_range = period_label(current_start, current_end)
     previous_range = period_label(previous_start, previous_end)
 
-    status_labels = [overall_status_label(item) for item in results]
-
-    growth_count = sum(1 for status in status_labels if "เติบโต" in status)
-    stable_count = sum(
-        1
-        for status in status_labels
-        if "ทรงตัว" in status or "รอแปลง" in status
-    )
-    warning_count = sum(
-        1
-        for status in status_labels
-        if "ติดตาม" in status or "Impression เพิ่ม" in status
-    )
-    decline_count = sum(1 for status in status_labels if "เร่งแก้" in status)
-
     lines.append("🏆 SEO MTD Leaderboard – Google Search Console")
     lines.append(f"ข้อมูลปัจจุบัน: {current_range}")
     lines.append(f"เทียบกับ: {previous_range}")
-    lines.append("")
-    lines.append("📌 สรุปภาพรวม")
-    lines.append(
-        f"เติบโต: {growth_count} | "
-        f"ทรงตัว: {stable_count} | "
-        f"ต้องติดตาม: {warning_count} | "
-        f"ลดลง: {decline_count}"
-    )
     lines.append("")
     lines.append("━━━━━━━━━━━━━━")
     lines.append("")
@@ -461,21 +423,19 @@ def build_slack_message(
         lines.append(f"{rank_label} {item.domain}")
         lines.append(f"สถานะรวม: {overall_status}")
         lines.append("")
-        lines.append(f"Metric | {current_range} | {previous_range} | Change | Status")
-        lines.append(
-            f"Clicks | "
-            f"{fmt_num(item.current_clicks)} | "
-            f"{fmt_num(item.previous_clicks)} | "
-            f"{clicks_change} | "
-            f"{clicks_status}"
-        )
-        lines.append(
-            f"Impressions | "
-            f"{fmt_num(item.current_impressions)} | "
-            f"{fmt_num(item.previous_impressions)} | "
-            f"{impressions_change} | "
-            f"{impressions_status}"
-        )
+        lines.append("Clicks")
+        lines.append(f"{current_range}: {fmt_num(item.current_clicks)}")
+        lines.append(f"{previous_range}: {fmt_num(item.previous_clicks)}")
+        lines.append(f"Change: {clicks_change}")
+        lines.append(f"Status: {clicks_status}")
+        lines.append("")
+        lines.append("Impressions")
+        lines.append(f"{current_range}: {fmt_num(item.current_impressions)}")
+        lines.append(f"{previous_range}: {fmt_num(item.previous_impressions)}")
+        lines.append(f"Change: {impressions_change}")
+        lines.append(f"Status: {impressions_status}")
+        lines.append("")
+        lines.append("━━━━━━━━━━━━━━")
         lines.append("")
 
     error_items = [item for item in results if item.error]
@@ -486,7 +446,7 @@ def build_slack_message(
         for item in error_items:
             lines.append(f"- {item.domain}: ตรวจสอบสิทธิ์ GSC หรือ property URL")
 
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n\n"
 
 
 def main():
