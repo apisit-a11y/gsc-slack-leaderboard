@@ -8,5 +8,5 @@
   { "domain": "sa-logistics.co.th", "gsc_property": "https://www.sa-logistics.co.th/" },
   { "domain": "aescon.co.th", "gsc_property": "https://www.aescon.co.th/" },
   { "domain": "aesovation.com", "gsc_property": "https://www.aesovation.com/" },
-  { "domain": "bslclinic.com", "gsc_property": "sc-domain:bslclinic.com" }
+  { "domain": "bslclinic.com", "gsc_property": "https://bslclinic.com/" }
 ]
