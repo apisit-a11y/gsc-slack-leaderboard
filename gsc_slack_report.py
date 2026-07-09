@@ -248,20 +248,6 @@ def decide_status(
     return "ต้องติดตาม"
 
 
-def overall_status_label(item: SiteResult) -> str:
-    if item.error:
-        return "ดึงข้อมูลไม่ได้"
-
-    return decide_status(
-        item.current_clicks,
-        item.previous_clicks,
-        item.current_impressions,
-        item.previous_impressions,
-        item.clicks_change_pct,
-        item.impressions_change_pct,
-    )
-
-
 def load_sites(path: str = "sites.json") -> List[Dict[str, str]]:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -416,7 +402,6 @@ def build_slack_message(
 
     for index, item in enumerate(results, start=1):
         rank_label = medal(index)
-        overall_status = overall_status_label(item)
 
         clicks_change = format_change_arrow(item.clicks_change_pct)
         impressions_change = format_change_arrow(item.impressions_change_pct)
@@ -428,7 +413,6 @@ def build_slack_message(
         )
 
         lines.append(f"{rank_label} {item.domain}")
-        lines.append(f"สถานะรวม: {overall_status}")
         lines.append("")
         lines.append("Clicks")
         lines.append(f"{current_range}: {fmt_num(item.current_clicks)}")
@@ -453,10 +437,7 @@ def build_slack_message(
         for item in error_items:
             lines.append(f"- {item.domain}: ตรวจสอบสิทธิ์ GSC หรือ property URL")
 
-    lines.append("จบรายงาน")
-    lines.append("")
-
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n\n"
 
 
 def main():
